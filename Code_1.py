@@ -28,3 +28,23 @@ print(sum)
 s = [1, 2, 3]
 sum = fun(*s)
 print(sum)
+
+L = ['Michael', 'Sarah', 'Tracy', 'Bob', 'Jack']
+
+# Iterate on iterable objects
+d = {'Henry':20, 'Mary':18, 'Kate':35}
+for key in d:
+    print(key)
+
+for value in d.values():
+    print(value)
+
+for kv in d.items():
+    print(kv)
+
+s = 'I am hello'
+for key in s:
+    print(key)
+
+for pair in enumerate(['A', 'B', 'C']):
+    print(pair)
