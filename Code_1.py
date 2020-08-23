@@ -48,3 +48,13 @@ for key in s:
 
 for pair in enumerate(['A', 'B', 'C']):
     print(pair)
+
+
+
+def createCounter():
+    i = 0
+    i = i+1
+    return i
+
+counterA = createCounter()
+#print(counterA(), counterA(), counterA(), counterA(), counterA()) # 1 2 3 4 5
