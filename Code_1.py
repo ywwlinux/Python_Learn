@@ -1,5 +1,6 @@
 # -*-  coding: utf-8 -*-
 
+
 age = 20
 if age >= 18:
     print('adult')
@@ -28,3 +29,19 @@ print(sum)
 s = [1, 2, 3]
 sum = fun(*s)
 print(sum)
+
+def log(fun):
+    def wrapper(*args, **kw):
+        print('begin call')
+        x = fun(*args, **kw)
+        print('end call')
+        return x
+    return wrapper
+
+@log 
+def sum_2(x, y):
+    return x+y
+
+z = sum_2(5, 10)
+print('5+10=', z)    
+
