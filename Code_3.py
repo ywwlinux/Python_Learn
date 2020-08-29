@@ -15,3 +15,22 @@ class Student(object):
 bart = Student('FangFang', 80)
 bart.print_score()
 
+def divideByzero():
+    return 5/0
+
+import logging
+logging.basicConfig(level=logging.ERROR)
+
+def main():
+    try:
+        divideByzero()
+    except Exception as e:
+        logging.exception(e)
+    finally:
+        print('Final Done')
+
+fpath = 'tests.txt'
+
+with open(fpath, 'r') as f:
+    s = f.read()
+    print(s)    
