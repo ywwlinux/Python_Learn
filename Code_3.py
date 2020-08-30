@@ -29,8 +29,18 @@ def main():
     finally:
         print('Final Done')
 
-fpath = 'tests.txt'
+fpath = 'E:/Git_Repository/Python_Learn/tests.txt'
 
-with open(fpath, 'r') as f:
-    s = f.read()
-    print(s)    
+#with open(fpath, 'r') as f:
+#    s = f.read()
+#    print(s)
+        
+
+from io import StringIO
+
+s = StringIO()
+s.write('hello, world')
+
+import os
+
+os.uname()
