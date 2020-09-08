@@ -2,6 +2,8 @@ import tensorflow as tf
 
 import numpy as np
 
+import utils
+
 # import matplotlib.pyplot as plt
 
 ' Code for learning tensorflow '
@@ -140,9 +142,102 @@ def use_tfdata_for_data():
 	# Evaluate the results
 	print('w, b: (%f, %f)\n'%(w_out2, b_out2))
 
+def logistic_regression_mnist():
+	# Define paramaters for the model
+	learning_rate = 0.01
+	batch_size = 128
+	n_epochs = 30
+	n_train = 60000
+	n_test = 10000
+	
+	# prepare the data
+	mnist_folder = 'data/mnist'
+	utils.download_mnist(mnist_folder)
+	train, val, test = utils.read_mnist(mnist_folder, flatten=True)
+
+	print('{0}, {1}'.format(n_test, len(test[0])))
+	print(test)
+	assert n_test == len(test[0]), 'Number of testing dataset is wrong!'
+
+	train_data = tf.data.Dataset.from_tensor_slices(train)
+	train_data = train_data.shuffle(10000)
+	test_data = tf.data.Dataset.from_tensor_slices(test)
+
+	train_data = train_data.batch(batch_size)
+	test_data = test_data.batch(batch_size)
+
+	iterator = tf.data.Iterator.from_structure(train_data.output_types, train_data.output_shapes)
+	img, label = iterator.get_next()
+	train_init = iterator.make_initializer(train_data)
+	test_init = iterator.make_initializer(test_data)
+	
+	# Construct the optimization pipeline
+	
+	# Step 1: create weights and bias
+	# w is initialized to random variables with mean of 0, stddev of 0.01
+	# b is initialized to 0
+	# shape of w depends on the dimension of X and Y so that Y = tf.matmul(X, w)
+	# shape of b depends on Y
+	# X corresponds to an image with size of (28, 28) which is flattened to have the dimension of (1, 784)
+	# Y is a vector containg 10 digits
+	w = tf.get_variable(name='weights', shape=(784, 10), initializer=tf.random_normal_initializer(0, 0.01))
+	b = tf.get_variable(name='bias', shape=(1, 10), initializer=tf.zeros_initializer())
+    
+	# Step 2: build model
+	# the model that returns the logits.
+	# this logits will be later passed through softmax layer
+	logits = tf.matmul(img, w) + b 
+
+	# Step 3: define loss function
+	# use cross entropy of softmax of logits as the loss function
+	entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=label, name='entropy')
+	loss = tf.reduce_mean(entropy, name='loss') # computes the mean over all the examples in the batch
+
+	# Step 4: define training op
+	# using gradient descent with learning rate of 0.01 to minimize loss
+	optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+
+	# Step 5: calculate accuracy with test set
+	preds = tf.nn.softmax(logits)
+	correct_preds = tf.equal(tf.argmax(preds, 1), tf.argmax(label, 1))
+	accuracy = tf.reduce_sum(tf.cast(correct_preds, tf.float32))
+
+	writer = tf.summary.FileWriter('./graphs/logreg', tf.get_default_graph())
+
+	# run the optimization
+	with tf.Session() as sess:
+		sess.run( tf.global_variables_initializer() )
+
+		for i in range(n_epochs):
+			sess.run(train_init)
+			total_loss = 0
+			n_batches = 0
+			try:
+				while True:
+					_, l = sess.run([optimizer, loss])
+					total_loss += l
+					n_batches += 1
+			except tf.errors.OutOfRangeError:
+				pass
+			print('Avrage loss epoch {0}: {1}'.format(i, total_loss/n_batches))
+
+		# test the model
+		sess.run(test_init)
+		total_correct_preds = 0
+		try:
+			while True:
+				accuracy_batch = sess.run(accuracy)
+				total_correct_preds += accuracy_batch
+		except tf.errors.OutOfRangeError:
+			pass 
+		
+		print('Accuracy {0}'.format(total_correct_preds/n_test))
+	
+	writer.close()
 
 if __name__ == '__main__':
 	# use_placeholder_for_data()
-	use_tfdata_for_data()
+	# use_tfdata_for_data()
+	logistic_regression_mnist()
 
 
