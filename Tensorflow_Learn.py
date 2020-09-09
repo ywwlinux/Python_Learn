@@ -299,12 +299,38 @@ def tensorflow_common_ops():
 # Return a boolean tensor that yields Trues if x equals y element-wise.
 # Hint: Look up tf.equal().
 ###############################################################################		
-	x = tf.constant([ [0,-2,-1], [0,1,2] ])
-	y = tf.zeros_like(x)
-	v = tf.equal(x, y)
+	# x = tf.constant([ [0,-2,-1], [0,1,2] ])
+	# y = tf.zeros_like(x)
+	# v = tf.equal(x, y)
+	# with tf.Session() as sess:
+	# 	xx, yy, vv = sess.run((x, y, v))
+	# 	print("x:{0}; y:{1}; v:{2}".format(xx, yy, vv))
+
+###############################################################################
+# 1d: Create the tensor x of value 
+# [29.05088806,  27.61298943,  31.19073486,  29.35532951,
+#  30.97266006,  26.67541885,  38.08450317,  20.74983215,
+#  34.94445419,  34.45999146,  29.06485367,  36.01657104,
+#  27.88236427,  20.56035233,  30.20379066,  29.51215172,
+#  33.71149445,  28.59134293,  36.05556488,  28.66994858].
+# Get the indices of elements in x whose values are greater than 30.
+# Hint: Use tf.where().
+# Then extract elements whose values are greater than 30.
+# Hint: Use tf.gather().
+###############################################################################
+	data = [29.05088806,  27.61298943,  31.19073486,  29.35532951,
+			30.97266006,  26.67541885,  38.08450317,  20.74983215,
+			34.94445419,  34.45999146,  29.06485367,  36.01657104,
+			27.88236427,  20.56035233,  30.20379066,  29.51215172,
+			33.71149445,  28.59134293,  36.05556488,  28.66994858]
+	x = tf.constant(data)
+	y = tf.constant(30, shape=np.shape(data), dtype=tf.float32)
+	# Parameters of the tensorflow ops should not be tensor unless the param corresponds to a tensor data 
+	pos = tf.where(x > y)
+	q = tf.gather(x, pos)
 	with tf.Session() as sess:
-		xx, yy, vv = sess.run((x, y, v))
-		print("x:{0}; y:{1}; v:{2}".format(xx, yy, vv))
+		xx, yy, pp, qq = sess.run((x, y, pos, q))
+		print("x:{0}; y:{1}; pos:{2}; q:{3}".format(xx, yy, pp, qq.flatten()))
 
     
 if __name__ == '__main__':
