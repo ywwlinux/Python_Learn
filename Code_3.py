@@ -43,4 +43,3 @@ s.write('hello, world')
 
 import os
 
-os.uname()
