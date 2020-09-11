@@ -332,7 +332,9 @@ def tensorflow_common_ops():
 		xx, yy, pp, qq = sess.run((x, y, pos, q))
 		print("x:{0}; y:{1}; pos:{2}; q:{3}".format(xx, yy, pp, qq.flatten()))
 
-    
+def word_2_vec():
+	   
+
 if __name__ == '__main__':
 	# use_placeholder_for_data()
 	# use_tfdata_for_data()
