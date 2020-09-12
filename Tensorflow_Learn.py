@@ -196,7 +196,7 @@ def logistic_regression_mnist():
 	entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=label, name='entropy')
 	loss = tf.reduce_mean(entropy, name='loss') # computes the mean over all the examples in the batch
 
-	# Step 4: define training op
+	# Step 4: define training op 
 	# using gradient descent with learning rate of 0.01 to minimize loss
 	optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
@@ -318,26 +318,98 @@ def tensorflow_common_ops():
 # Then extract elements whose values are greater than 30.
 # Hint: Use tf.gather().
 ###############################################################################
-	data = [29.05088806,  27.61298943,  31.19073486,  29.35532951,
-			30.97266006,  26.67541885,  38.08450317,  20.74983215,
-			34.94445419,  34.45999146,  29.06485367,  36.01657104,
-			27.88236427,  20.56035233,  30.20379066,  29.51215172,
-			33.71149445,  28.59134293,  36.05556488,  28.66994858]
-	x = tf.constant(data)
-	y = tf.constant(30, shape=np.shape(data), dtype=tf.float32)
-	# Parameters of the tensorflow ops should not be tensor unless the param corresponds to a tensor data 
-	pos = tf.where(x > y)
-	q = tf.gather(x, pos)
-	with tf.Session() as sess:
-		xx, yy, pp, qq = sess.run((x, y, pos, q))
-		print("x:{0}; y:{1}; pos:{2}; q:{3}".format(xx, yy, pp, qq.flatten()))
+	# data = [29.05088806,  27.61298943,  31.19073486,  29.35532951,
+	# 		30.97266006,  26.67541885,  38.08450317,  20.74983215,
+	# 		34.94445419,  34.45999146,  29.06485367,  36.01657104,
+	# 		27.88236427,  20.56035233,  30.20379066,  29.51215172,
+	# 		33.71149445,  28.59134293,  36.05556488,  28.66994858]
+	# x = tf.constant(data)
+	# y = tf.constant(30, shape=np.shape(data), dtype=tf.float32)
+	# # Parameters of the tensorflow ops should not be tensor unless the param corresponds to a tensor data 
+	# pos = tf.where(x > y)
+	# q = tf.gather(x, pos)
+	# with tf.Session() as sess:
+	# 	xx, yy, pp, qq = sess.run((x, y, pos, q))
+	# 	print("x:{0}; y:{1}; pos:{2}; q:{3}".format(xx, yy, pp, qq.flatten()))
 
+###############################################################################
+# 1e: Create a diagnoal 2-d tensor of size 6 x 6 with the diagonal values of 1,
+# 2, ..., 6
+# Hint: Use tf.range() and tf.diag().
+###############################################################################
+	# x = tf.range(1, 7, 1)
+	# y = tf.diag(x)
+	# with tf.Session() as sess:
+	# 	xx, yy = sess.run((x, y))
+	# 	print("x:{0}; y:{1}".format(xx, yy))
+
+###############################################################################
+# 1f: Create a random 2-d tensor of size 10 x 10 from any distribution.
+# Calculate its determinant.
+# Hint: Look at tf.matrix_determinant().
+###############################################################################
+	# x = tf.random_uniform([10, 10])
+	# y = tf.matrix_determinant(x)
+	# with tf.Session() as sess:
+	# 	xx, yy = sess.run((x, y))
+	# 	print("x:{0}; y:{1}".format(xx, yy))
+
+###############################################################################
+# 1g: Create tensor x with value [5, 2, 3, 5, 10, 6, 2, 3, 4, 2, 1, 1, 0, 9].
+# Return the unique elements in x
+# Hint: use tf.unique(). Keep in mind that tf.unique() returns a tuple.
+###############################################################################
+	# x = tf.constant([5, 2, 3, 5, 10, 6, 2, 3, 4, 2, 1, 1, 0, 9])
+	# y, idx = tf.unique(x)
+	# with tf.Session() as sess:
+	# 	xx, yy, id = sess.run((x, y, idx))
+	# 	print("x:{0}; y:{1}; id:{2}".format(xx, yy, id))
+
+###############################################################################
+# 1h: Create two tensors x and y of shape 300 from any normal distribution,
+# as long as they are from the same distribution.
+# Use tf.cond() to return:
+# - The mean squared error of (x - y) if the average of all elements in (x - y)
+#   is negative, or
+# - The sum of absolute value of all elements in the tensor (x - y) otherwise.
+# Hint: see the Huber loss function in the lecture slides 3.
+###############################################################################
+	tf.set_random_seed(10)
+	x = tf.random_normal([300])
+	y = tf.random_normal([300])
+	sum = tf.reduce_sum(x-y)
+	ave = sum / tf.cast(tf.size(x), tf.float32)
+	def f1(): 
+		return tf.reduce_mean(tf.square(x-y))
+	def f2():
+		return tf.reduce_sum( tf.abs(x-y) )
+
+	ret = tf.cond( ave < 0, f1, f2)
+	with tf.Session() as sess:
+		xx, yy, rr = sess.run((x, y, ret))
+		print("ret:{0}".format(rr))
+
+	np.dot()
+
+def Test_Tensor_Dim():
+	x_data = np.float32(np.random.rand(2, 100)) # 随机输入
+	y_data = np.dot([0.100, 0.200], x_data) + 0.300
+
+	b = tf.Variable(tf.ones([1]))
+	W = tf.Variable(tf.random_uniform([1, 2], -1.0, 1.0))
+	y = tf.matmul(W, x_data) + b
+
+	with tf.Session() as sess:
+		sess.run( tf.global_variables_initializer() )
+		yy, bb = sess.run((y, b))
+		print("y:{0}; b:{1}".format(yy, bb))
     
 if __name__ == '__main__':
 	# use_placeholder_for_data()
 	# use_tfdata_for_data()
 	# logistic_regression_mnist()
 	# tensorflow_dataslice_format()
-	tensorflow_common_ops()
+	# tensorflow_common_ops()
+	Test_Tensor_Dim()
 
 
