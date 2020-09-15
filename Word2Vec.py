@@ -1,14 +1,13 @@
-
-""" word2vec skip-gram model with NCE loss and 
+""" word2vec skip-gram model with NCE loss and
 code to visualize the embeddings on TensorBoard
 In skip-gram model, we train a word-vec embedding by predicting the neighbor for each center word.
 The model is implemented in a class for clarity and re-usage
 """
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
-import numpy as np
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 from tensorflow.contrib.tensorboard.plugins import projector
 import tensorflow as tf
 
@@ -18,28 +17,31 @@ import word_utils
 # Model hyperparameters
 VOCAB_SIZE = 50000
 BATCH_SIZE = 128
-EMBED_SIZE = 128            # dimension of the word embedding vectors
-SKIP_WINDOW = 1             # the context window
-NUM_SAMPLED = 64            # number of negative examples to sample
+EMBED_SIZE = 128  # dimension of the word embedding vectors
+SKIP_WINDOW = 1  # the context window
+NUM_SAMPLED = 64  # number of negative examples to sample
 LEARNING_RATE = 1.0
 NUM_TRAIN_STEPS = 100000
 VISUAL_FLD = 'visualization'
-SKIP_STEP = 5000   
+SKIP_STEP = 5000
 
 # Parameters for downloading data
 DOWNLOAD_URL = 'http://mattmahoney.net/dc/text8.zip'
 EXPECTED_BYTES = 31344016
-NUM_VISUALIZE = 3000        # number of tokens to visualize
+NUM_VISUALIZE = 3000  # number of tokens to visualize
+
 
 class SkipGramModel:
     """ Build the graph for word2vec model """
+
     def __init__(self, dataset, vocab_size, embed_size, batch_size, num_sampled, learning_rate):
         self.vocab_size = vocab_size
         self.embed_size = embed_size
         self.batch_size = batch_size
         self.num_sampled = num_sampled
         self.lr = learning_rate
-        self.global_step = tf.get_variable('global_step', initializer=tf.constant(0), trainable=False) # The variable that is used for ?
+        self.global_step = tf.get_variable('global_step', initializer=tf.constant(0),
+                                           trainable=False)  # The variable that is used for ?
         self.skip_step = SKIP_STEP
         self.dataset = dataset
 
@@ -55,23 +57,23 @@ class SkipGramModel:
         """
         with tf.name_scope('embed'):
             self.embed_matrix = tf.get_variable('embed_matrix',
-                    shape = [self.vocab_size, self.embed_size],
-                    initializer=tf.random_uniform_initializer())
-            self.embed = tf.nn.embedding_lookup(self.embed_matrix, self.center_words, name = 'embedding')
+                                                shape=[self.vocab_size, self.embed_size],
+                                                initializer=tf.random_uniform_initializer())
+            self.embed = tf.nn.embedding_lookup(self.embed_matrix, self.center_words, name='embedding')
 
-    def _create_loss(self): # like the softmax nn layer with softmax loss
+    def _create_loss(self):  # like the softmax nn layer with softmax loss
         # step 4: construct variable for NCE loss and define the loss function
         with tf.name_scope('loss'):
             nce_weights = tf.get_variable('nce_weight', shape=[self.vocab_size, self.embed_size])
             nce_bias = tf.get_variable('nce_bias', initializer=tf.zeros([self.vocab_size]))
-            
+
             # define loss function to be NCE loss function
-            self.loss = tf.reduce_mean(tf.nn.nce_loss( weights = nce_weights,
-                                biases = nce_bias,
-                                labels=self.target_words,
-                                inputs=self.embed,
-                                num_sampled=self.num_sampled,
-                                num_classes=self.vocab_size, name = 'loss') )
+            self.loss = tf.reduce_mean(tf.nn.nce_loss(weights=nce_weights,
+                                                      biases=nce_bias,
+                                                      labels=self.target_words,
+                                                      inputs=self.embed,
+                                                      num_sampled=self.num_sampled,
+                                                      num_classes=self.vocab_size, name='loss'))
 
     def _create_optimizer(self):
         # Step 5: define optimizer
@@ -92,32 +94,35 @@ class SkipGramModel:
         self._create_loss()
         self._create_optimizer()
         self._create_summaries()
-    
+
     def train(self, num_train_steps):
-        saver = tf.train.Saver() # default to saving all variables - in this case embed_matrix, nce_weight, nce_bias
+        saver = tf.train.Saver()  # default to saving all variables - in this case embed_matrix, nce_weight, nce_bias, global_step
 
         initial_step = 0
         utils.safe_mkdir('checkpoints')
+
+        inc = tf.assign_add(self.global_step, 1)
+
         with tf.Session() as sess:
             sess.run(self.iterator.initializer)
             sess.run(tf.global_variables_initializer())
-            ckpt = tf.train.get_checkpoint_state( os.path.dirname('checkpoints/checkpoint') )
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/checkpoint'))
 
             # if that checkpoint exists, restore from checkpoint
-            if ckpt and ckpt.model_checkpoint_path:
+            if ckpt and ckpt.model_checkpoint_path: 
                 saver.restore(sess, ckpt.model_checkpoint_path)
 
             total_loss = .0
             writer = tf.summary.FileWriter('graphs/word2vec/lr' + str(self.lr), sess.graph)
             initial_step = self.global_step.eval()
             
-            for index in range(initial_step, initial_step + num_train_steps):
+            for index in range(initial_step, num_train_steps):
                 try:
-                    loss_batch, _, summary = sess.run([ self.loss, self.optimizer, self.summary_op ])
-                    writer.add_summary( summary, global_step = index )
+                    loss_batch, _, g_step, summary = sess.run([self.loss, self.optimizer, inc, self.summary_op])
+                    writer.add_summary(summary, global_step=index)
                     total_loss += loss_batch
                     if (index + 1) % self.skip_step == 0:
-                        print('Average loss at step {}: {:5.1f}'.format(index, total_loss / self.skip_step))
+                        print('Average loss at step {}, {}: {:5.1f}'.format(index, g_step, total_loss / self.skip_step))
                         total_loss = 0.0
                         saver.save(sess, 'checkpoints/skip-gram', index)
                 except tf.errors.OutOfRangeError:
@@ -129,7 +134,7 @@ class SkipGramModel:
 
         # create the list of num_variable most common words to visualize
         word_utils.most_common_word(visual_fld, num_visualize)
-  
+
         saver = tf.train.Saver()
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
@@ -139,7 +144,7 @@ class SkipGramModel:
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(sess, ckpt.model_checkpoint_path)
 
-            final_embed_matrix = sess.run(self.embed_matrix)     
+            final_embed_matrix = sess.run(self.embed_matrix)
 
             # you have to store embeddings in a new variable
             embedding_var = tf.Variable(final_embed_matrix[:num_visualize], name='embedding')
@@ -156,23 +161,26 @@ class SkipGramModel:
             embedding.metadata_path = 'vocab_' + str(num_visualize) + '.tsv'
 
             # saves a configuration file that TensorBoard will read during startup.
-            projector.visualize_embeddings(summary_writer, config)
+            projector.visualize_embeddings(summary_writer, config) # config is saved in summary file
             saver_embed = tf.train.Saver([embedding_var])
-            saver_embed.save(sess, os.path.join(visual_fld, 'model.ckpt'), 1)
+            saver_embed.save(sess, os.path.join(visual_fld, 'model.ckpt'), 1)  # embedding is saved here
+
+            summary_writer.close()
 
 
 def gen():
-    yield from word_utils.batch_gen(DOWNLOAD_URL, EXPECTED_BYTES, VOCAB_SIZE, 
-                                        BATCH_SIZE, SKIP_WINDOW, VISUAL_FLD)    
+    yield from word_utils.batch_gen(DOWNLOAD_URL, EXPECTED_BYTES, VOCAB_SIZE,
+                                    BATCH_SIZE, SKIP_WINDOW, VISUAL_FLD)
+
 
 def main():
-    dataset = tf.data.Dataset.from_generator(gen, (tf.int32, tf.int32), (tf.TensorShape([BATCH_SIZE]), 
-                            tf.TensorShape([BATCH_SIZE, 1])))
+    dataset = tf.data.Dataset.from_generator(gen, (tf.int32, tf.int32), (tf.TensorShape([BATCH_SIZE]),
+                                                                         tf.TensorShape([BATCH_SIZE, 1])))
     model = SkipGramModel(dataset, VOCAB_SIZE, EMBED_SIZE, BATCH_SIZE, NUM_SAMPLED, LEARNING_RATE)
     model.build_graph()
-    # model.train(NUM_TRAIN_STEPS)
+    model.train(NUM_TRAIN_STEPS)
     model.visualize(VISUAL_FLD, NUM_VISUALIZE)
+
 
 if __name__ == '__main__':
     main()
-

@@ -6,6 +6,8 @@ __pycache__/
 # Folders
 graphs/
 data/
+visualization/
+checkpoints/
 
 # C extensions
 *.so
