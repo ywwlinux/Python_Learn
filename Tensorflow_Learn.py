@@ -14,6 +14,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 __author__ = 'Wenwu Yang'
 
+#tensorboard --logdir="./graphs" --port 6006; http://localhost:6006/
+
 DATA_FILE = 'data/birth_life_2010.txt'
 
 def read_birth_life_data(filename):
@@ -90,7 +92,7 @@ def use_placeholder_for_data():
 # optimizer = tf.train.GradientDescentOptimizer(learning_rate = 0.01).minimize(loss)
 
 # # Step3: run the session
-# writer = tf.summary.FileWriter('./graphs', tf.get_default_graph()) #tensorboard --logdir="./graphs" --port 6006; http://localhost:6006/
+# writer = tf.summary.FileWriter('./graphs', tf.get_default_graph()) 
 # with tf.Session() as sess:
 # 	sess.run(tf.global_variables_initializer())
 
@@ -197,7 +199,8 @@ def logistic_regression_mnist():
 	entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=label, name='entropy')
 	loss = tf.reduce_mean(entropy, name='loss') # computes the mean over all the examples in the batch
 
-	# Step 4: define training op 
+
+	# Step 4: define training op
 	# using gradient descent with learning rate of 0.01 to minimize loss
 	optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
@@ -400,22 +403,77 @@ def word_2_vec():
 	LEARNING_RATE = 1.0
 	NUM_TRAIN_STEPS = 100000
 	VISUAL_FLD = 'visualization'
-	SKIP_STEP = 5000
+	SKIP_STEP = 5000   
 
 	# Parameters for downloading data
 	DOWNLOAD_URL = 'http://mattmahoney.net/dc/text8.zip'
 	EXPECTED_BYTES = 31344016
 	NUM_VISUALIZE = 3000        # number of tokens to visualize
 
-	# Prepare the training data
-	gen = word_utils.batch_gen(DOWNLOAD_URL, EXPECTED_BYTES, VOCAB_SIZE, BATCH_SIZE,
-	                            SKIP_WINDOW, VISUAL_FLD)
-    dataset = tf.data.Dataset.from_generator(gen, (tf.int32, tf.int32),
-		(tf.TensorShape([BATCH_SIZE]), tf.TensorShape([BATCHSIZE, 1]])))
+	# Prepare the dataset
+	# gen = word_utils.batch_gen(DOWNLOAD_URL, EXPECTED_BYTES, VOCAB_SIZE, BATCH_SIZE, SKIP_WINDOW, VISUAL_FLD)
+
+	# for i in range(2):
+	# 	print('epoch:{0}'.format(i))
+	# 	center_words, target_words = next(gen)
+	# 	print(center_words)
+
+	def gen() : yield from word_utils.batch_gen(DOWNLOAD_URL, EXPECTED_BYTES, VOCAB_SIZE, BATCH_SIZE, SKIP_WINDOW, VISUAL_FLD)
+
+	dataset = tf.data.Dataset.from_generator(gen, (tf.int32, tf.int32), (tf.TensorShape([BATCH_SIZE]), tf.TensorShape([BATCH_SIZE, 1])))
 	
-	# Build the graph for word2vec model and train it
+	# Build the graph for word2vec model
+	# Step 1: get input, output from the dataset
+	with tf.name_scope('data'):
+		iterator = dataset.make_initializable_iterator()
+		center_words, target_words = iterator.get_next()
 	
-	   
+	""" Step 2+3: define weights and embedding lookup
+	In word2vec, it's actually the weights that we care about
+	"""
+	with tf.name_scope('embed'):
+		embed_matrix = tf.get_variable('embed_matrix',
+		          shape = [VOCAB_SIZE, EMBED_SIZE],
+		          initializer=tf.random_uniform_initializer())
+		embed = tf.nn.embedding_lookup(embed_matrix, center_words, name = 'embedding')
+
+	# step 4: construct variable for NCE loss and define the loss function
+	with tf.name_scope('loss'):
+		nce_weights = tf.get_variable('nce_weight', shape=[VOCAB_SIZE, EMBED_SIZE])
+		nce_bias = tf.get_variable('nce_bias', initializer=tf.zeros([VOCAB_SIZE]))
+		
+		# define loss function to be NCE loss function
+		loss = tf.reduce_mean(tf.nn.nce_loss( weights = nce_weights,
+		                       biases = nce_bias,
+							   labels=target_words,
+							   inputs=embed,
+							   num_sampled=NUM_SAMPLED,
+							   num_classes=VOCAB_SIZE, name = 'loss') )
+
+	# Step 5: define optimizer
+	with tf.name_scope('optimizer'):
+		optimizer = tf.train.GradientDescentOptimizer(LEARNING_RATE).minimize(loss)
+
+	utils.safe_mkdir('checkpoints')
+
+	with tf.Session() as sess:
+		sess.run(iterator.initializer)
+		sess.run(tf.global_variables_initializer())
+		
+		total_loss = .0 # we use this to calculate late average loss in the last skip_step step
+		writer = tf.summary.FileWriter('graphs/word2vec_simple', sess.graph)
+
+		for index in range(NUM_TRAIN_STEPS):
+			try:
+				loss_batch, _ = sess.run([loss, optimizer])
+				total_loss += loss_batch
+				if(index+1)%SKIP_STEP == 0:
+					print('Average loss at step {0}:{1:5.1f}'.format(index+1, total_loss/SKIP_STEP))
+					total_loss = .0
+			except tf.errors.OutOfRangeError:
+				sess.run(iterator.initializer) # Re-start the batch generator. Note that the gen function would be run from the starting once again
+		
+		writer.close()
 
 if __name__ == '__main__':
 	# use_placeholder_for_data()
@@ -423,6 +481,6 @@ if __name__ == '__main__':
 	# logistic_regression_mnist()
 	# tensorflow_dataslice_format()
 	# tensorflow_common_ops()
-	Test_Tensor_Dim()
+	word_2_vec()
 
 

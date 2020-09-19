@@ -71,7 +71,12 @@ def most_common_word(vis_folder, num_vis):
         file.write(word)
     file.close()
 
+test_num = 0
+
 def batch_gen(download_url, expected_byte, vocab_size, batch_size, skip_window, vis_folder):
+    """ Note that (1) at each time the generate is initialized the batch_gen() should be run from the beginning
+              and (2) the generator will be actually run when the first yield is needed by 'next' op
+    """
     local_dest = 'data/text8.zip'
     utils.download_one_file(download_url, local_dest, expected_byte)
     words = read_data(local_dest)    
