@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 
 import utils
+import word_utils
 
 # import matplotlib.pyplot as plt
 import os
@@ -389,21 +390,33 @@ def tensorflow_common_ops():
 		xx, yy, rr = sess.run((x, y, ret))
 		print("ret:{0}".format(rr))
 
-	np.dot()
+def word_2_vec():
+	# Model hyperparameters
+	VOCAB_SIZE = 50000
+	BATCH_SIZE = 128
+	EMBED_SIZE = 128            # dimension of the word embedding vectors
+	SKIP_WINDOW = 1             # the context window
+	NUM_SAMPLED = 64            # number of negative examples to sample
+	LEARNING_RATE = 1.0
+	NUM_TRAIN_STEPS = 100000
+	VISUAL_FLD = 'visualization'
+	SKIP_STEP = 5000
 
-def Test_Tensor_Dim():
-	x_data = np.float32(np.random.rand(2, 100)) # 随机输入
-	y_data = np.dot([0.100, 0.200], x_data) + 0.300
+	# Parameters for downloading data
+	DOWNLOAD_URL = 'http://mattmahoney.net/dc/text8.zip'
+	EXPECTED_BYTES = 31344016
+	NUM_VISUALIZE = 3000        # number of tokens to visualize
 
-	b = tf.Variable(tf.ones([1]))
-	W = tf.Variable(tf.random_uniform([1, 2], -1.0, 1.0))
-	y = tf.matmul(W, x_data) + b
+	# Prepare the training data
+	gen = word_utils.batch_gen(DOWNLOAD_URL, EXPECTED_BYTES, VOCAB_SIZE, BATCH_SIZE,
+	                            SKIP_WINDOW, VISUAL_FLD)
+    dataset = tf.data.Dataset.from_generator(gen, (tf.int32, tf.int32),
+		(tf.TensorShape([BATCH_SIZE]), tf.TensorShape([BATCHSIZE, 1]])))
+	
+	# Build the graph for word2vec model and train it
+	
+	   
 
-	with tf.Session() as sess:
-		sess.run( tf.global_variables_initializer() )
-		yy, bb = sess.run((y, b))
-		print("y:{0}; b:{1}".format(yy, bb))
-    
 if __name__ == '__main__':
 	# use_placeholder_for_data()
 	# use_tfdata_for_data()
