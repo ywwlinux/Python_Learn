@@ -48,7 +48,7 @@ class MinistConvModel:
         self.keep_prob = tf.constant(0.75)
         self.gstep = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
         self.skip_step = 20
-        self.training = tf.constant(True)
+        self.training = tf.Variable(True, trainable=False)
 
     def Train(self, nepoch):
         # Step 1: load data
@@ -87,7 +87,8 @@ class MinistConvModel:
 
     def train_one_epoch(self, sess, saver, writer, epoch, step):
         start_time = time.time()
-        self.training = True  # does it work? It's a Tensor constant which is dependened by the dropout tensor
+        # self.training = tf.constant(True)  # does it work? It's a Tensor constant which is dependened by the dropout tensor
+        tf.assign(self.training, True)
         total_loss = 0
         n_batches = 0
         try:
@@ -106,9 +107,10 @@ class MinistConvModel:
         print('Took: {0} seconds'.format(time.time() - start_time))
         return step
 
-    def eval_once(self, sess, init, writer, epoch, step):
+    def eval_once(self, sess, writer, epoch, step):
         start_time = time.time()
-        self.training = False   # does it work?
+        # self.training = False   # does it work?
+        tf.assign(self.training, False)
         total_correct_preds = 0
         try:
             while True:
@@ -129,7 +131,7 @@ class MinistConvModel:
             pool1 = maxpool(conv1, 2, 2, 'VALID', 'POOL1')
 
             # conv-layer 2
-            conv2 = conv_relu(pool1, k_size=5, stride = 1, padding='SAME', nFilter=62,
+            conv2 = conv_relu(pool1, k_size=5, stride = 1, padding='SAME', nFilter=64,
                 scope_name='CONV2')
             pool2 = maxpool(conv2, 2, 2, 'VALID', 'POOL2')
 
@@ -137,10 +139,11 @@ class MinistConvModel:
             feature_dim = pool2.shape[1]*pool2.shape[2]*pool2.shape[3]
             pool2 = tf.reshape(pool2, [-1, feature_dim])
             fc = tf.nn.relu( fully_connected(pool2, 1024, 'fc') )
-            dropout = tf.layers.dropout(fc, self.keep_prob, training=self.training, name='dropout')
+            # dropout = tf.layers.dropout(fc, self.keep_prob, training=self.training, name='dropout')
+            dropout = tf.nn.dropout(fc, self.keep_prob, name='dropout')
 
             # fc_softmax
-            self.logits = fc(dropout, self.n_classes, 'logits')
+            self.logits = fully_connected(dropout, self.n_classes, 'logits')
 
         with tf.name_scope('Loss'):
             # loss
