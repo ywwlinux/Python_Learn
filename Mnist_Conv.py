@@ -115,7 +115,7 @@ class MinistConvModel:
         try:
             while True:
                 accuracy_batch, summaries = sess.run([self.accuracy, self.summary_op]) # summary of loss and accuracy on testing data every batch-step
-                writer.add_summary(summaries, global_step=step) # step does not change. Does it make sense? I don't think so, so we should comment the code of this line.
+                # writer.add_summary(summaries, global_step=step) # step does not change. Does it make sense? I don't think so, so we should comment the code of this line.
                 total_correct_preds += accuracy_batch
         except tf.errors.OutOfRangeError:
             pass
