@@ -8,6 +8,7 @@ graphs/
 data/
 visualization/
 checkpoints/
+.idea/
 
 # C extensions
 *.so
