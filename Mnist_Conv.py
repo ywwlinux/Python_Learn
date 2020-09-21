@@ -5,6 +5,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import tensorflow as tf
+import numpy as np
 
 import utils
 import time
@@ -26,7 +27,7 @@ def maxpool(inputs, k_size, stride, padding='VALID', scope_name='POOL'):
 
     return pool
 
-def fc(inputs, out_dim, scope_name='fc'):
+def fully_connected(inputs, out_dim, scope_name='fc'):
     with tf.variable_scope(scope_name, reuse=tf.AUTO_REUSE) as scope:
         in_dim = inputs.shape[-1]
         w = tf.get_variable('weights', [in_dim, out_dim], initializer=tf.truncated_normal_initializer())
@@ -45,10 +46,9 @@ class MinistConvModel:
 
         self.lr = 0.001
         self.keep_prob = tf.constant(0.75)
-        self.gstep = tf.Variable(0, dtype=tf.int32, 
-                                trainable=False, name='global_step')
+        self.gstep = tf.Variable(0, dtype=tf.int32, trainable=False, name='global_step')
         self.skip_step = 20
-        self.training = True
+        self.training = tf.Variable(True, trainable=False)
 
     def Train(self, nepoch):
         # Step 1: load data
@@ -87,7 +87,8 @@ class MinistConvModel:
 
     def train_one_epoch(self, sess, saver, writer, epoch, step):
         start_time = time.time()
-        self.training = True  # does it work?
+        # self.training = tf.constant(True)  # does it work? It's a Tensor constant which is dependened by the dropout tensor
+        tf.assign(self.training, True)
         total_loss = 0
         n_batches = 0
         try:
@@ -106,9 +107,10 @@ class MinistConvModel:
         print('Took: {0} seconds'.format(time.time() - start_time))
         return step
 
-    def eval_once(self, sess, init, writer, epoch, step):
+    def eval_once(self, sess, writer, epoch, step):
         start_time = time.time()
-        self.training = False   # does it work?
+        # self.training = False   # does it work?
+        tf.assign(self.training, False)
         total_correct_preds = 0
         try:
             while True:
@@ -129,22 +131,23 @@ class MinistConvModel:
             pool1 = maxpool(conv1, 2, 2, 'VALID', 'POOL1')
 
             # conv-layer 2
-            conv2 = conv_relu(pool1, k_size=5, stride = 1, padding='SAME', nFilter=62,
+            conv2 = conv_relu(pool1, k_size=5, stride = 1, padding='SAME', nFilter=64,
                 scope_name='CONV2')
             pool2 = maxpool(conv2, 2, 2, 'VALID', 'POOL2')
 
             # fc_1
             feature_dim = pool2.shape[1]*pool2.shape[2]*pool2.shape[3]
             pool2 = tf.reshape(pool2, [-1, feature_dim])
-            fc = tf.nn.relu( fc(pool2, 1024, 'fc') )
-            dropout = tf.layers.dropout(fc, self.keep_prob, training=self.training, name='dropout')
+            fc = tf.nn.relu( fully_connected(pool2, 1024, 'fc') )
+            # dropout = tf.layers.dropout(fc, self.keep_prob, training=self.training, name='dropout')
+            dropout = tf.nn.dropout(fc, self.keep_prob, name='dropout')
 
             # fc_softmax
-            self.logits = fc(dropout, self.nClasses, 'logits')
+            self.logits = fully_connected(dropout, self.n_classes, 'logits')
 
         with tf.name_scope('Loss'):
             # loss
-            entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self.label, name='entropy')
+            entropy = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.label, name='entropy')
             self.loss = tf.reduce_mean(entropy, name='loss') # computes the mean over all the examples in the batch
 
         with tf.name_scope('Optimize'):
@@ -169,7 +172,7 @@ class MinistConvModel:
         """
         with tf.name_scope('Predict'):
             preds = tf.nn.softmax(self.logits)
-            correct_preds = tf.equal(tf.argmax(preds, 1), self.label)
+            correct_preds = tf.equal(tf.argmax(preds, 1), tf.argmax(self.label, 1))
             self.accuracy = tf.reduce_sum(tf.cast(correct_preds, tf.float32))
 
     def _importData(self):
@@ -184,13 +187,26 @@ class MinistConvModel:
 
 if __name__ == '__main__':
     # Load data
-	mnist_folder = 'data/mnist'
-	utils.download_mnist(mnist_folder)
-	train, val, test = utils.read_mnist(mnist_folder, flatten=True)
+    mnist_folder = 'data/mnist'
+    utils.download_mnist(mnist_folder)
+    train, val, test = utils.read_mnist(mnist_folder, flatten=False)
 
-	train_data = tf.data.Dataset.from_tensor_slices(train)
-	train_data = train_data.shuffle(10000)
-	test_data = tf.data.Dataset.from_tensor_slices(test)
+    train_imgs = train[0]
+    test_imgs = test[0]
+    train_imgs = np.expand_dims(train_imgs, -1)
+    test_imgs = np.expand_dims(test_imgs, -1)
+    # train[0] = np.expand_dims(train[0], -1)
+    # test[0] = np.expand_dims(test[0], -1)
 
-    model = MinistConvModel(train_data, test_data, test.shape[0], test.shape[-1], 128)
+    train_data = tf.data.Dataset.from_tensor_slices((train_imgs, train[1]))
+    train_data = train_data.shuffle(10000)
+    test_data = tf.data.Dataset.from_tensor_slices((test_imgs, test[1]))
+
+    model = MinistConvModel(train_data, test_data, test[0].shape[0], test[1].shape[-1], 128)
     model.Train(30)    
+
+"""
+In ops of tensorflow, if their parames are changable during run, 
+the params should be tensor which varies by the run of the static graph
+"""
+

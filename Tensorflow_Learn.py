@@ -199,7 +199,6 @@ def logistic_regression_mnist():
 	entropy = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=label, name='entropy')
 	loss = tf.reduce_mean(entropy, name='loss') # computes the mean over all the examples in the batch
 
-
 	# Step 4: define training op
 	# using gradient descent with learning rate of 0.01 to minimize loss
 	optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
@@ -425,5 +424,8 @@ if __name__ == '__main__':
 	# tensorflow_dataslice_format()
 	# tensorflow_common_ops()
 	word_2_vec()
+	tf.truncated_normal()
+	x1 = tf.truncated_normal([200, 100], name='x1')
+
 
 
