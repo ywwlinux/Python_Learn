@@ -15,6 +15,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL']='2' # to avoid the warning that CPU capabilit
 import numpy as np
 import tensorflow as tf
 
+from PIL import Image, ImageOps
+
 def safe_mkdir(path):
     """ Create a directory if there isn't one already. """
     try:
@@ -104,3 +106,20 @@ def read_mnist(path, flatten=True, num_train=55000):
     val_img, val_labels = imgs[val_idx, :], labels[val_idx, :]
     test = parse_data(path, 't10k', flatten)
     return (train_img, train_labels), (val_img, val_labels), test
+
+def get_resized_image(img_path, width, height, save=True):
+    image = Image.open(img_path)
+    # PIL is column major so you have to swap the places of width and height
+    image = ImageOps.fit(image, (width, height), Image.ANTIALIAS)
+    if save:
+        image_dirs = img_path.split('/')
+        image_dirs[-1] = 'resized_' + image_dirs[-1]
+        out_path = '/'.join(image_dirs)
+        if not os.path.exists(out_path):
+            image.save(out_path)
+    image = np.asarray(image, np.float32)
+    return np.expand_dims(image, 0)
+
+def generate_noise_image(content_image, width, height, noise_ratio=0.6):
+    noise_image = np.random.uniform(-20, 20, (1, height, width, 3)).astype(np.float32)
+    return noise_image * noise_ratio + content_image*(1-noise_ratio)

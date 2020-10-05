@@ -2,21 +2,21 @@
 in Tensorflow of the paper A Neural Algorithm of Artistic Style
 """
 
+import sys
+
 import numpy as np
 import scipy.io
 import tensorflow as tf
 
-import sys
 sys.path.append('..')
-
-import utils
 
 # VGG-19 parameters file
 VGG_DOWNLOAD_LINK = 'http://www.vlfeat.org/matconvnet/models/imagenet-vgg-verydeep-19.mat'
 VGG_FILENAME = '../data/imagenet-vgg-verydeep-19.mat'
 EXPECTED_BYTES = 534904783
 
-class VGG_Loader(object):
+
+class VGG(object):
     def __init__(self, input_img):
         self.vgg_layers = scipy.io.loadmat(VGG_FILENAME)
         self.input_img = input_img
@@ -39,11 +39,11 @@ class VGG_Loader(object):
         """
         with tf.variable_scope(layer_name) as scope:
             W, b = self._weights(layer_idx, layer_name)
-            W = tf.constant(W, name = 'weights')
-            b = tf.constant(b, name = 'bias')
+            W = tf.constant(W, name='weights')
+            b = tf.constant(b, name='bias')
             conv2d = tf.nn.conv2d(prev_layer, filter=W,
-                      strides=[1,1,1,1], padding='SAME')
-            out = tf.nn.relu(conv2d+b)
+                                  strides=[1, 1, 1, 1], padding='SAME')
+            out = tf.nn.relu(conv2d + b)
 
         setattr(self, layer_name, out)
 
@@ -53,7 +53,7 @@ class VGG_Loader(object):
         """
         with tf.variable_scope(layer_name):
             out = tf.nn.avg_pool(prev_layer, ksize=[1, 2, 2, 1],
-                  strides=[1, 2, 2, 1], padding='SAME')
+                                 strides=[1, 2, 2, 1], padding='SAME')
 
         setattr(self, layer_name, out)
 
@@ -80,6 +80,6 @@ class VGG_Loader(object):
         self.conv2d_relu(self.conv5_3, 34, 'conv5_4')
         self.avgpool(self.conv5_4, 'avgpool5')
 
+
 if __name__ == '__main__':
     pass
-
