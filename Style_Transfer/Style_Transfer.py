@@ -86,6 +86,37 @@ class StyleTransfer(object):
             Note: Don't use the coefficient 0.5 as defined in the paper.
             Use the coefficient defined in the assignment handout.
         '''
+        self.content_loss = tf.reduce_sum( (F-P)**2 )/(4.0*P.size)
+
+    def _gram_matrix(self, F, N, M):
+        '''
+        Create and return the gram matrix for tensor F
+        Hint: you'll first have to reshape F
+        '''
+        F = tf.reshape(F, (M, N))
+        return tf.matmul(tf.transpose(F), F)
+
+    def _single_style_loss(self, a, g):
+        ''' Calculate the style loss at a certain layer
+        Inputs:
+            a is the feature representation of the style image at that layer
+            g is the feature representation of the generated image at that layer
+        Output:
+            the style loss at a certain layer (which is E_1 in the paper)
+
+        Hint: 1. you'll have to use the function _gram_matrix()
+              2. we'll use the same coefficient for style loss as in the paper
+              3. a nd g are feature representations, not gram matrices
+              4. Gram matrix is used to describe the correlations between feature maps/vectors, which
+                 can be used to describe the style of the features at this layer
+        '''
+
+        N = a.shape[3] # number of filters
+        M = a.shape[1]*a.shape[2] # height times width of the feature map
+        A = self._gram_matrix(a, N, M)
+        G = self._gram_matrix(g, N, M)
+
+        return tf.reduce_sum( (G-A)**2 / ((2*N*M)**2) )
 
         
 
