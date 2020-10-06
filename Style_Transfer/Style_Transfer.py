@@ -14,6 +14,7 @@ import tensorflow as tf
 
 import sys
 sys.path.append('..')
+sys.path.append('../Style_Transfer/')
 
 import VGG_Loader
 import utils
@@ -23,7 +24,7 @@ def setup():
     utils.safe_mkdir('outputs')
 
 class StyleTransfer(object):
-    def __int__(self, content_img_path, style_img_path, img_width, img_height):
+    def __init__(self, content_img_path, style_img_path, img_width, img_height):
         '''
         img_width and img_height are the dimensions we expect from the generated images
         '''
@@ -31,7 +32,7 @@ class StyleTransfer(object):
         self.img_height = img_height
         self.content_img = utils.get_resized_image(content_img_path, img_width, img_height)
         self.style_img = utils.get_resized_image(style_img_path, img_width, img_height)
-        self.initial_img = utils.generate_noise_image(self.content_img, img_width, img_width)
+        self.initial_img = utils.generate_noise_image(self.content_img, img_width, img_height)
 
         ##################################
         ## Create global step (gstep) and hyperparameters for the model
@@ -118,6 +119,104 @@ class StyleTransfer(object):
 
         return tf.reduce_sum( (G-A)**2 / ((2*N*M)**2) )
 
-        
+    def _style_loss(self, A):
+        '''
+        Calculate the total style loss as a weighted sum
+        of style losses at all style layers
+        Hint: you'll have to use _single_style_loss()
+        '''
+        n_layers = len(A)
+        E = [self._single_style_loss(A[i], getattr(self.vgg, self.style_layers[i])) for i in range(n_layers)]
 
+        self.style_loss = sum([self.style_layer_w[i]*E[i] for i in range(n_layers)])
 
+    def losses(self):
+        with tf.variable_scope('losses') as scope:
+            with tf.Session() as sess:
+                # assign content image to the input variable
+                sess.run(self.input_img.assign(self.content_img))
+                gen_img_content = getattr(self.vgg, self.content_layer)
+                content_img_content = sess.run(gen_img_content)
+            self._content_loss(content_img_content, gen_img_content)
+
+            with tf.Session() as sess:
+                sess.run(self.input_img.assign(self.style_img))
+                style_layers=sess.run([getattr(self.vgg, layer) for layer in self.style_layers])
+            self._style_loss(style_layers)
+
+            ## create the total loss
+            self.total_loss = self.content_w * self.content_loss + self.style_w * self.style_loss
+
+    def optimize(self):
+        # create optimizer
+        self.opt = tf.train.AdamOptimizer(self.lr).minimize(self.total_loss, global_step=self.gstep)
+
+    def create_summary(self):
+        '''
+        Create summaries for all the losses
+        Hint: don't forget to merge them
+        '''
+        with tf.name_scope('summaries'):
+            tf.summary.scalar('content loss', self.content_loss)
+            tf.summary.scalar('style loss', self.style_loss)
+            tf.summary.scalar('total loss', self.total_loss)
+            self.summary_op = tf.summary.merge_all()
+
+    def build(self):
+        self.create_input()
+        self.load_vgg()
+        self.losses()
+        self.optimize()
+        self.create_summary()
+
+    def train(self, n_iters):
+        skip_step = 1
+        with tf.Session() as sess:
+            #######################
+            ## 1. Initialize your variables
+            ## 2. Create writer to write your graph
+            sess.run(tf.global_variables_initializer())
+            writer = tf.summary.FileWriter('graphs/style_transfer', sess.graph)
+            #######################
+            sess.run(self.input_img.assign(self.initial_img))
+
+            #########################
+            ## 1. create a saver object
+            ## 2. check if checkpoint exists, restore the variables
+            saver = tf.train.Saver()
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/style_transfer/checkpoint'))
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+            #########################
+
+            initial_step = self.gstep.eval()
+
+            start_time = time.time()
+            for index in range(initial_step, n_iters):
+                if index >= 5 and index < 20:
+                    skip_step = 10
+                elif index >= 20:
+                    skip_step = 20
+
+                sess.run(self.opt) # optimize the network
+                if(index+1)%skip_step == 0:
+                    gen_image, total_loss, summary = sess.run([self.input_img, self.total_loss, self.summary_op])
+                    gen_image = gen_image + self.vgg.mean_pixels
+                    writer.add_summary(summary, global_step=index)
+                    print('Step{}\n Sum: {:5.1f}'.format(index+1, np.sum(gen_image)))
+                    print('   Loss: {:5.1f}'.format(total_loss))
+                    print('   Took: {} seconds'.format(time.time()-start_time))
+                    start_time = time.time()
+
+                    filename = 'outputs/%d.png' % (index)
+                    utils.save_image(filename, gen_image)
+
+                    if(index+1)%20==0:
+                        # save the variables into checkpoint
+                        saver.save(sess, 'checkpoints/style_transfer/checkpoint', index)
+
+if __name__ == '__main__':
+    setup()
+    machine = StyleTransfer('images/deadpool.jpg', 'images/guernica.jpg', 333, 250)
+    machine.build()
+    machine.train(300)
